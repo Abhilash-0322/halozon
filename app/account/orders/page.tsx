@@ -45,7 +45,7 @@ export default async function OrdersPage() {
                   </div>
                   <div>
                     <div className="text-amazon-textMuted">ORDER # {o.orderNumber}</div>
-                    <a className="amazon-link" href="#">View order details</a>
+                    <Link className="amazon-link" href={`/account/orders/${o._id}`}>View order details</Link>
                   </div>
                 </div>
                 <div className="divide-y divide-amazon-border">

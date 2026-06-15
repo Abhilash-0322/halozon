@@ -1,12 +1,20 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { Heart, ChevronRight, Plus, Minus, Truck, Shield, RotateCcw, MapPin } from 'lucide-react';
+import { Heart, ChevronRight, Plus, Minus, Truck, Shield, RotateCcw, MapPin, Eye, AlertTriangle } from 'lucide-react';
 import { formatPrice, calcDiscount, starArray } from '@/lib/utils';
 import StarRating from '@/components/StarRating';
 import ProductCard from '@/components/ProductCard';
 import { useCart } from '@/hooks/useCart';
 import { useWishlist } from '@/hooks/useWishlist';
+import ReviewForm from '@/components/ReviewForm';
+import QASection from '@/components/QASection';
+import PhotoLightbox from '@/components/PhotoLightbox';
+import RecentlyViewed from '@/components/RecentlyViewed';
+import BundleWidget from '@/components/BundleWidget';
+import LiveViewers from '@/components/LiveViewers';
+import SubscribeSave from '@/components/SubscribeSave';
+import StockAlert from '@/components/StockAlert';
 import toast from 'react-hot-toast';
 
 type P = {
@@ -29,6 +37,7 @@ type P = {
   sizes?: string[];
   seller?: string;
   stock?: number;
+  lowStockThreshold?: number;
   freeShipping?: boolean;
   fastShipping?: boolean;
 };
@@ -38,30 +47,43 @@ export default function ProductDetail({ product, related }: { product: P; relate
   const [qty, setQty] = useState(1);
   const [color, setColor] = useState<string | null>(product.colors?.[0] || null);
   const [size, setSize] = useState<string | null>(product.sizes?.[0] || null);
-  const [tab, setTab] = useState<'description' | 'reviews'>('description');
+  const [tab, setTab] = useState<'description' | 'reviews' | 'qa'>('description');
+  const [zoomOpen, setZoomOpen] = useState(false);
   const { add } = useCart();
   const { has, toggle } = useWishlist();
 
   const discount = calcDiscount(product.price, product.listPrice);
   const stars = starArray(product.rating || 0);
   const wished = has(product._id);
+  const isLowStock = (product.stock ?? 100) <= (product.lowStockThreshold ?? 5);
+
+  // Real verified-buyer breakdown
+  const reviewsArr = product.reviews || [];
+  const verifiedCount = reviewsArr.filter((r: any) => r.verifiedBuyer).length;
 
   async function handleAdd() {
     const ok = await add(product._id, qty);
     if (ok) toast.success(`Added ${qty} to cart`);
     else toast.error('Please sign in');
   }
-
   async function handleBuyNow() {
     const ok = await add(product._id, qty);
     if (ok) window.location.href = '/checkout';
     else toast.error('Please sign in');
   }
-
   async function handleWish() {
     const ok = await toggle(product._id);
     if (!ok) toast('Please sign in to use wish list');
     else toast.success(wished ? 'Removed from wish list' : 'Added to wish list');
+  }
+
+  async function voteHelpful(rid: string) {
+    const r = await fetch(`/api/products/${product._id}/reviews/${rid}/helpful`, { method: 'POST' });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.alreadyVoted) toast('You already marked this helpful');
+      else toast.success('Thanks for the feedback');
+    } else toast.error('Sign in to vote');
   }
 
   return (
@@ -96,14 +118,20 @@ export default function ProductDetail({ product, related }: { product: P; relate
                 </button>
               ))}
             </div>
-            <div className="flex-1 aspect-square bg-white border border-amazon-border rounded-md flex items-center justify-center overflow-hidden">
+            <button
+              onClick={() => setZoomOpen(true)}
+              className="flex-1 aspect-square bg-white border border-amazon-border rounded-md flex items-center justify-center overflow-hidden group relative cursor-zoom-in"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={product.images?.[active]}
                 alt={product.title}
-                className="max-w-full max-h-full object-contain transition-transform duration-300 hover:scale-110"
+                className="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-110"
               />
-            </div>
+              <span className="absolute bottom-2 right-2 bg-white/95 rounded-full p-1.5 shadow opacity-0 group-hover:opacity-100 transition-opacity">
+                <Eye className="w-4 h-4" />
+              </span>
+            </button>
           </div>
         </div>
 
@@ -113,10 +141,20 @@ export default function ProductDetail({ product, related }: { product: P; relate
           <Link href="#reviews" className="text-sm amazon-link">
             Visit the {product.brand || 'halozon'} Store
           </Link>
+          {(product as any).sellerId && (
+            <div className="text-xs text-amazon-textMuted">
+              Sold by{' '}
+              <Link href={`/store/${(product as any).sellerSlug || ''}`} className="text-amazon-link hover:underline">
+                {(product as any).sellerName || product.seller}
+              </Link>
+            </div>
+          )}
           <div className="flex items-center gap-3 pt-1">
             <span className="text-base font-medium">{Number(product.rating || 0).toFixed(1)}</span>
             <StarRating rating={product.rating || 0} count={product.ratingCount} />
           </div>
+          <LiveViewers productId={product._id} />
+
           <div className="border-t border-b border-amazon-border py-3">
             <div className="flex items-baseline gap-2 flex-wrap">
               {discount > 0 && (
@@ -125,9 +163,7 @@ export default function ProductDetail({ product, related }: { product: P; relate
                 </span>
               )}
               <sup className="text-sm">$</sup>
-              <span className="text-3xl font-medium text-amazon-red">
-                {Math.floor(product.price)}
-              </span>
+              <span className="text-3xl font-medium text-amazon-red">{Math.floor(product.price)}</span>
               <sup className="text-sm">{((product.price % 1) * 100).toFixed(0).padStart(2, '0')}</sup>
               {product.listPrice && product.listPrice > product.price && (
                 <span className="price-strike">List: {formatPrice(product.listPrice)}</span>
@@ -144,6 +180,13 @@ export default function ProductDetail({ product, related }: { product: P; relate
             )}
           </div>
 
+          {isLowStock && (
+            <div className="text-sm text-amazon-deal flex items-center gap-1 bg-amazon-deal/10 px-2 py-1.5 rounded">
+              <AlertTriangle className="w-4 h-4" />
+              Only <b>{product.stock}</b> left in stock - order soon.
+            </div>
+          )}
+
           {product.isPrime && (
             <div className="border-b border-amazon-border pb-3">
               <div className="flex items-center gap-2 text-sm">
@@ -156,7 +199,6 @@ export default function ProductDetail({ product, related }: { product: P; relate
             </div>
           )}
 
-          {/* Color */}
           {product.colors && product.colors.length > 0 && (
             <div>
               <div className="text-sm">
@@ -178,7 +220,6 @@ export default function ProductDetail({ product, related }: { product: P; relate
             </div>
           )}
 
-          {/* Size */}
           {product.sizes && product.sizes.length > 0 && (
             <div>
               <div className="text-sm">
@@ -199,6 +240,12 @@ export default function ProductDetail({ product, related }: { product: P; relate
               </div>
             </div>
           )}
+
+          {/* Subscribe & Save */}
+          <SubscribeSave productId={product._id} price={product.price} />
+
+          {/* Bundle widget */}
+          <BundleWidget productId={product._id} />
 
           {/* About */}
           {product.features && product.features.length > 0 && (
@@ -224,15 +271,13 @@ export default function ProductDetail({ product, related }: { product: P; relate
               <div>
                 <b>FREE delivery</b> <span className="text-amazon-textMuted">Tomorrow</span>
               </div>
-              <div className="text-xs text-amazon-textMuted">
-                Order within 3 hrs 27 mins.
-              </div>
+              <div className="text-xs text-amazon-textMuted">Order within 3 hrs 27 mins.</div>
             </div>
             <div className="text-sm">
               <MapPin className="w-4 h-4 inline mr-1 text-amazon-link" />
               <span className="amazon-link">Deliver to United States</span>
             </div>
-            <div className="text-lg font-bold">
+            <div className={`text-lg font-bold ${isLowStock ? 'text-amazon-deal' : ''}`}>
               {product.stock && product.stock > 0 ? 'In Stock' : 'Currently unavailable'}
             </div>
 
@@ -247,7 +292,7 @@ export default function ProductDetail({ product, related }: { product: P; relate
                   onChange={(e) => setQty(Number(e.target.value))}
                   className="px-2 py-1 border-0 bg-transparent text-sm"
                 >
-                  {Array.from({ length: 10 }, (_, i) => (
+                  {Array.from({ length: Math.min(10, product.stock || 10) }, (_, i) => (
                     <option key={i} value={i + 1}>{i + 1}</option>
                   ))}
                 </select>
@@ -270,6 +315,8 @@ export default function ProductDetail({ product, related }: { product: P; relate
               <Heart className={`w-4 h-4 ${wished ? 'fill-amazon-deal text-amazon-deal' : ''}`} />
               {wished ? 'Already in your Wish List' : 'Add to Wish List'}
             </button>
+
+            {isLowStock && <StockAlert productId={product._id} />}
           </div>
 
           <div className="panel p-3 mt-3 text-xs text-amazon-textMuted space-y-1.5">
@@ -293,20 +340,28 @@ export default function ProductDetail({ product, related }: { product: P; relate
         </div>
       </div>
 
+      {/* Q&A */}
+      <QASection productId={product._id} />
+
       {/* Tabs */}
       <div id="reviews" className="panel mt-6">
         <div className="flex border-b border-amazon-border">
-          {(['description', 'reviews'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-6 py-3 text-sm font-medium border-b-2 ${
-                tab === t ? 'border-amazon-orange text-amazon-linkHover' : 'border-transparent text-amazon-text'
-              }`}
-            >
-              {t === 'description' ? 'Description' : `Reviews (${product.reviews?.length || product.ratingCount || 0})`}
-            </button>
-          ))}
+          <button
+            onClick={() => setTab('description')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${
+              tab === 'description' ? 'border-amazon-orange text-amazon-linkHover' : 'border-transparent text-amazon-text'
+            }`}
+          >
+            Description
+          </button>
+          <button
+            onClick={() => setTab('reviews')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${
+              tab === 'reviews' ? 'border-amazon-orange text-amazon-linkHover' : 'border-transparent text-amazon-text'
+            }`}
+          >
+            Reviews ({product.ratingCount || 0})
+          </button>
         </div>
         <div className="p-5">
           {tab === 'description' && (
@@ -321,12 +376,13 @@ export default function ProductDetail({ product, related }: { product: P; relate
                 <div className="flex items-center gap-2 my-2">
                   <StarRating rating={product.rating || 0} count={product.ratingCount} />
                 </div>
+                {verifiedCount > 0 && (
+                  <p className="text-xs text-amazon-textMuted mb-3">
+                    {verifiedCount} verified buyer reviews
+                  </p>
+                )}
                 <hr className="my-3" />
-                <h4 className="font-bold mb-2">Review this product</h4>
-                <p className="text-xs text-amazon-textMuted mb-3">
-                  Share your thoughts with other customers
-                </p>
-                <Link href="/signin" className="amazon-btn-dark w-fit inline-block">Write a customer review</Link>
+                <ReviewForm productId={product._id} onSubmitted={() => setTab('reviews')} />
                 <hr className="my-4" />
                 <div className="space-y-1">
                   {[5, 4, 3, 2, 1].map((n) => (
@@ -344,23 +400,41 @@ export default function ProductDetail({ product, related }: { product: P; relate
                 </div>
               </div>
               <div className="space-y-4">
-                {(product.reviews || []).slice(0, 10).map((r, i) => (
+                {reviewsArr.length === 0 && (
+                  <div className="text-sm text-amazon-textMuted">No reviews yet — be the first!</div>
+                )}
+                {reviewsArr.slice(0, 10).map((r: any, i: number) => (
                   <div key={i} className="border-b border-amazon-border pb-4">
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-bold">{r.userName || 'Customer'}</span>
                       <StarRating rating={r.rating} showCount={false} size="sm" />
                     </div>
                     <div className="text-sm font-bold mt-1">{r.title}</div>
-                    <div className="text-xs text-amazon-textMuted">
+                    <div className="text-xs text-amazon-textMuted flex items-center gap-2">
                       Reviewed in the United States on {new Date(r.createdAt || Date.now()).toLocaleDateString()}
+                      {r.verifiedBuyer && (
+                        <span className="chip !bg-amazon-orange/15 !text-amazon-orange">Verified Purchase</span>
+                      )}
                     </div>
                     <p className="text-sm mt-2">{r.body}</p>
-                    <div className="text-xs text-amazon-link mt-2">{r.helpful || 0} people found this helpful</div>
+                    {r.images && r.images.length > 0 && (
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        {r.images.map((img: string, k: number) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={k} src={img} alt={`review-${k}`} className="w-16 h-16 rounded object-cover border border-amazon-border cursor-pointer hover:scale-110 transition-transform" />
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-2 flex items-center gap-3">
+                      <button
+                        onClick={() => voteHelpful(r._id)}
+                        className="text-xs text-amazon-link hover:text-amazon-linkHover border border-amazon-border rounded-md px-3 py-1 hover:bg-amazon-bg"
+                      >
+                        Helpful ({r.helpful || 0})
+                      </button>
+                    </div>
                   </div>
                 ))}
-                {(!product.reviews || product.reviews.length === 0) && (
-                  <div className="text-sm text-amazon-textMuted">No reviews yet.</div>
-                )}
               </div>
             </div>
           )}
@@ -377,6 +451,14 @@ export default function ProductDetail({ product, related }: { product: P; relate
             ))}
           </div>
         </section>
+      )}
+
+      {/* Recently viewed */}
+      <RecentlyViewed />
+
+      {/* Lightbox */}
+      {zoomOpen && product.images && (
+        <PhotoLightbox images={product.images} initialIndex={active} onClose={() => setZoomOpen(false)} />
       )}
     </div>
   );

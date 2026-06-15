@@ -1,22 +1,55 @@
 'use client';
 import Link from 'next/link';
+import { ChevronUp, Globe } from 'lucide-react';
 
-const COLS = [
+type Item = { label: string; href: string };
+
+const COLS: { title: string; items: Item[] }[] = [
   {
     title: 'Get to Know Us',
-    items: ['Careers', 'Blog', 'About halozon', 'Sustainability', 'Press Center', 'Investor Relations', 'halozon Devices', 'halozon Science'],
+    items: [
+      { label: 'Careers', href: '/info/careers' },
+      { label: 'Blog', href: '/info/blog' },
+      { label: 'About halozon', href: '/info/about' },
+      { label: 'Sustainability', href: '/info/sustainability' },
+      { label: 'Press Center', href: '/info/press' },
+      { label: 'Investor Relations', href: '/info/investor-relations' },
+      { label: 'halozon Devices', href: '/info/devices' },
+      { label: 'halozon Science', href: '/info/science' },
+    ],
   },
   {
     title: 'Make Money with Us',
-    items: ['Sell on halozon', 'Sell apps on halozon', 'Become an Affiliate', 'Advertise Your Products', 'Self-Publish with Us', 'Host a halozon Hub', '› See More Ways to Make Money'],
+    items: [
+      { label: 'Sell on halozon', href: '/seller/apply' },
+      { label: 'Sell apps on halozon', href: '/info/sell-apps' },
+      { label: 'Become an Affiliate', href: '/info/affiliate' },
+      { label: 'Advertise Your Products', href: '/info/advertise' },
+      { label: 'Self-Publish with Us', href: '/info/publish' },
+      { label: 'Host a halozon Hub', href: '/info/hub' },
+      { label: '› See More Ways to Make Money', href: '/info/make-money' },
+    ],
   },
   {
     title: 'Payment Products',
-    items: ['halozon Business Card', 'Shop with Points', 'Reload Your Balance', 'Currency Converter'],
+    items: [
+      { label: 'halozon Business Card', href: '/info/business-card' },
+      { label: 'Shop with Points', href: '/info/shop-points' },
+      { label: 'Reload Your Balance', href: '/info/reload-balance' },
+      { label: 'Currency Converter', href: '/currency-converter' },
+    ],
   },
   {
     title: 'Let Us Help You',
-    items: ['Your Account', 'Your Orders', 'Shipping Rates & Policies', 'Returns', 'Manage Subscriptions', 'Help', 'Accessibility'],
+    items: [
+      { label: 'Your Account', href: '/account' },
+      { label: 'Your Orders', href: '/account/orders' },
+      { label: 'Shipping Rates & Policies', href: '/info/shipping-policies' },
+      { label: 'Returns', href: '/account/returns' },
+      { label: 'Manage Subscriptions', href: '/account/subscriptions' },
+      { label: 'Help', href: '/help' },
+      { label: 'Accessibility', href: '/info/accessibility' },
+    ],
   },
 ];
 
@@ -26,9 +59,10 @@ export default function Footer() {
       {/* Back to top */}
       <button
         onClick={() => typeof window !== 'undefined' && window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="w-full bg-amazon-navylight hover:bg-amazon-navy text-white text-sm py-3 transition-colors"
+        className="w-full bg-amazon-navylight hover:bg-amazon-navy text-white text-sm py-3 transition-colors flex items-center justify-center gap-1"
+        aria-label="Back to top"
       >
-        Back to top
+        <ChevronUp className="w-4 h-4" /> Back to top
       </button>
 
       {/* Main 4-col */}
@@ -39,8 +73,13 @@ export default function Footer() {
               <h3 className="font-bold mb-3 text-white">{col.title}</h3>
               <ul className="space-y-1.5 text-white/80">
                 {col.items.map((it) => (
-                  <li key={it}>
-                    <a className="hover:underline cursor-pointer text-white/80 hover:text-white transition-colors">{it}</a>
+                  <li key={it.href + it.label}>
+                    <Link
+                      href={it.href}
+                      className="hover:underline text-white/80 hover:text-white transition-colors"
+                    >
+                      {it.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -50,13 +89,15 @@ export default function Footer() {
 
         {/* Logo divider */}
         <div className="border-t border-white/10 py-6 flex flex-col items-center gap-4">
-          <div className="flex items-end">
+          <Link href="/" className="flex items-end" aria-label="halozon home">
             <span className="text-2xl font-extrabold leading-none">halo</span>
             <span className="text-2xl font-extrabold leading-none text-amazon-orange">zon</span>
             <span className="text-amazon-orange text-xs ml-0.5 leading-none translate-y-[-2px]">.com</span>
-          </div>
+          </Link>
           <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
-            <button className="border border-white/40 rounded px-3 py-1.5 hover:border-white">🌐 English</button>
+            <button className="border border-white/40 rounded px-3 py-1.5 hover:border-white flex items-center gap-1">
+              <Globe className="w-3 h-3" /> English
+            </button>
             <button className="border border-white/40 rounded px-3 py-1.5 hover:border-white">$ USD - U.S. Dollar</button>
             <button className="border border-white/40 rounded px-3 py-1.5 hover:border-white">🇺🇸 United States</button>
           </div>

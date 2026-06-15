@@ -55,7 +55,33 @@ export async function getCurrentUser() {
     name: user.name,
     email: user.email,
     role: user.role,
+    banned: user.banned,
+    sellerProfile: user.sellerProfile,
   };
+}
+
+export async function requireUser() {
+  const user = await getCurrentUser();
+  if (!user) return { error: 'Sign in required', status: 401 } as const;
+  if (user.banned) return { error: 'Account suspended', status: 403 } as const;
+  return { user } as const;
+}
+
+export async function requireSeller() {
+  const user = await getCurrentUser();
+  if (!user) return { error: 'Sign in required', status: 401 } as const;
+  if (user.role !== 'seller' && user.role !== 'admin')
+    return { error: 'Seller account required', status: 403 } as const;
+  if (!user.sellerProfile?.approved && user.role !== 'admin')
+    return { error: 'Seller application not approved', status: 403 } as const;
+  return { user } as const;
+}
+
+export async function requireAdmin() {
+  const user = await getCurrentUser();
+  if (!user) return { error: 'Sign in required', status: 401 } as const;
+  if (user.role !== 'admin') return { error: 'Admin access required', status: 403 } as const;
+  return { user } as const;
 }
 
 export async function hashPassword(pw: string) {

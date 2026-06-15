@@ -17,6 +17,26 @@ export async function GET(req: NextRequest) {
   if (prime) filter.isPrime = true;
   if (search) filter.$text = { $search: search };
 
+  // Brand multi-select
+  const brands = sp.getAll('brand');
+  if (brands.length) filter.brand = { $in: brands };
+
+  // Min rating
+  if (sp.get('minRating')) filter.rating = { $gte: Number(sp.get('minRating')) };
+
+  // Price range
+  const priceCond: Record<string, number> = {};
+  if (sp.get('min')) priceCond.$gte = Number(sp.get('min'));
+  if (sp.get('max')) priceCond.$lte = Number(sp.get('max'));
+  if (Object.keys(priceCond).length) filter.price = priceCond;
+
+  // Discount % (computed) - approximated by ratio of listPrice to price
+  const minDiscount = Number(sp.get('minDiscount') || 0);
+  if (minDiscount > 0) {
+    filter.listPrice = { $gt: 0 };
+    // We'll re-filter in JS for accuracy because Mongo can't compute ratio
+  }
+
   const sort = sp.get('sort') || 'relevance';
   const sortMap: Record<string, any> = {
     relevance: { rating: -1, sold: -1 },
@@ -28,10 +48,18 @@ export async function GET(req: NextRequest) {
   };
 
   const limit = Math.min(parseInt(sp.get('limit') || '60'), 200);
-  const items = await Product.find(filter)
+  let items = await Product.find(filter)
     .sort(sortMap[sort] || sortMap.relevance)
     .limit(limit)
     .select('-reviews -description')
     .lean();
-  return NextResponse.json({ items });
+
+  if (minDiscount > 0) {
+    items = items.filter((p: any) => {
+      if (!p.listPrice || p.listPrice <= p.price) return false;
+      return ((p.listPrice - p.price) / p.listPrice) * 100 >= minDiscount;
+    });
+  }
+
+  return NextResponse.json({ items: JSON.parse(JSON.stringify(items)) });
 }

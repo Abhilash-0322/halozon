@@ -4,6 +4,7 @@ import Category from '@/models/Category';
 import Hero from '@/components/Hero';
 import ProductGrid from '@/components/ProductGrid';
 import CategoryTile from '@/components/CategoryTile';
+import PersonalizedRow from '@/components/PersonalizedRow';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -110,6 +111,9 @@ export default async function Home() {
 
         {/* Best Sellers */}
         <ProductGrid products={safeBestSellers} title="Best Sellers" />
+
+        {/* Personalized */}
+        <PersonalizedRow />
 
         {/* Bottom info block */}
         <div className="bg-white border border-amazon-border rounded-md p-6 mt-8 text-center">

@@ -54,7 +54,7 @@ function SignInForm() {
           onChange={(e) => setPassword(e.target.value)}
           className="amazon-input"
         />
-        <span className="text-xs amazon-link mt-1 inline-block">Forgot your password?</span>
+        <Link href="/forgot-password" className="text-xs amazon-link mt-1 inline-block">Forgot your password?</Link>
       </label>
       <button type="submit" disabled={submitting} className="amazon-btn-yellow w-full !text-sm !py-2 disabled:opacity-60">
         {submitting ? 'Signing in...' : 'Sign in'}

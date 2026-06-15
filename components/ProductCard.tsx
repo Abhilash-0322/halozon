@@ -1,9 +1,9 @@
 'use client';
 import Link from 'next/link';
-import Image from 'next/image';
-import { Heart } from 'lucide-react';
+import { Heart, GitCompare } from 'lucide-react';
 import { formatPrice, calcDiscount, starArray } from '@/lib/utils';
 import { useWishlist } from '@/hooks/useWishlist';
+import { useCompare } from '@/hooks/useCompare';
 import toast from 'react-hot-toast';
 
 type P = {
@@ -18,28 +18,54 @@ type P = {
   ratingCount?: number;
   isPrime?: boolean;
   isDeal?: boolean;
+  stock?: number;
+  lowStockThreshold?: number;
 };
 
 export default function ProductCard({ product, compact }: { product: P; compact?: boolean }) {
   const discount = calcDiscount(product.price, product.listPrice);
-  const { has, toggle } = useWishlist();
-  const wished = has(product._id);
+  const { has: wished, toggle } = useWishlist();
+  const { has: compared, toggle: toggleCompare } = useCompare();
+  const isWished = wished(product._id);
+  const isCompared = compared(product._id);
+  const isLowStock = (product.stock ?? 100) <= (product.lowStockThreshold ?? 5);
 
   function handleWish(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     toggle(product._id).then((ok) => {
       if (!ok) toast('Please sign in to use your wishlist');
-      else toast.success(wished ? 'Removed from wish list' : 'Added to wish list');
+      else toast.success(isWished ? 'Removed from wish list' : 'Added to wish list');
     });
+  }
+  function handleCompare(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleCompare(product._id);
   }
 
   const stars = starArray(product.rating || 0);
   return (
     <Link
       href={`/product/${product._id}`}
-      className="amazon-card amazon-card-hover p-3 group flex flex-col h-full"
+      className="amazon-card amazon-card-hover p-3 group flex flex-col h-full relative"
     >
+      {!compact && (
+        <label
+          className={`absolute top-1.5 left-1.5 z-10 flex items-center gap-1 text-[10px] bg-white/95 border rounded px-1.5 py-0.5 cursor-pointer transition-all ${
+            isCompared ? 'border-amazon-orange text-amazon-orange font-medium' : 'border-amazon-border text-amazon-textMuted hover:border-amazon-orange'
+          }`}
+          onClick={handleCompare}
+        >
+          <input
+            type="checkbox"
+            checked={isCompared}
+            onChange={() => {}}
+            className="w-3 h-3 cursor-pointer"
+          />
+          Compare
+        </label>
+      )}
       <div className="relative aspect-square mb-2 bg-white overflow-hidden flex items-center justify-center">
         {product.images?.[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -66,11 +92,16 @@ export default function ProductCard({ product, compact }: { product: P; compact?
           onClick={handleWish}
           aria-label="Add to wish list"
           className={`absolute top-1.5 right-1.5 p-1.5 rounded-full bg-white/95 shadow transition-all ${
-            wished ? 'text-amazon-deal scale-110' : 'text-amazon-textMuted hover:text-amazon-deal'
+            isWished ? 'text-amazon-deal scale-110' : 'text-amazon-textMuted hover:text-amazon-deal'
           }`}
         >
-          <Heart className={`w-4 h-4 ${wished ? 'fill-amazon-deal' : ''}`} />
+          <Heart className={`w-4 h-4 ${isWished ? 'fill-amazon-deal' : ''}`} />
         </button>
+        {isLowStock && (
+          <span className="absolute bottom-1 left-1 bg-amazon-deal/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+            Only {product.stock} left
+          </span>
+        )}
       </div>
       <div className="flex-1 flex flex-col">
         {!compact && product.rating ? (

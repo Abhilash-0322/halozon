@@ -8,7 +8,10 @@ const ReviewSchema = new mongoose.Schema(
     title: String,
     body: String,
     helpful: { type: Number, default: 0 },
+    helpfulVoters: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     verified: { type: Boolean, default: true },
+    verifiedBuyer: { type: Boolean, default: false },
+    images: [{ type: String }],
   },
   { timestamps: true }
 );
@@ -31,6 +34,7 @@ const ProductSchema = new mongoose.Schema(
     ratingCount: { type: Number, default: 0 },
     reviews: [ReviewSchema],
     stock: { type: Number, default: 50 },
+    lowStockThreshold: { type: Number, default: 5 },
     sold: { type: Number, default: 0 },
     isPrime: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
@@ -38,10 +42,14 @@ const ProductSchema = new mongoose.Schema(
     dealEndsAt: Date,
     fastShipping: { type: Boolean, default: true },
     freeShipping: { type: Boolean, default: true },
-    seller: { type: String, default: 'Halozon.com' },
+    seller: { type: String, default: 'halozon.com' },
+    sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true, sparse: true },
+    sellerName: String,
+    sellerSlug: { type: String, index: true, sparse: true },
     colors: [String],
     sizes: [String],
     tags: [String],
+    viewCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
